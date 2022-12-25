@@ -21,20 +21,33 @@ browser = webdriver.Chrome(options=options)
 
 def get_page_count(keyword):
   base_url = "https://kr.indeed.com/jobs?q="
-  end_url = "&limit=50"
-  browser.get(f"{base_url}{keyword}{end_url}")
+  browser.get(f"{base_url}{keyword}")
   soup = BeautifulSoup(browser.page_source, "html.parser")
   pagination = soup.find("nav", class_="ecydgvn0")
   if pagination == None:
     return 1
   #pages = pagination.find_all("div", recursive=False)
   pages = pagination.select("div")
+
+  next_page = pages[5].find("a")
+  print(next_page['aria-label'])
+
+
+  if next_page['aria-label'] == "Next Page":
+    base_url = "https://kr.indeed.com/jobs"
+    browser.get(f"{base_url}?q={keyword}&start={5*10}")
+    soup = BeautifulSoup(browser.page_source, "html.parser")
+    pagination = soup.find("nav", class_="ecydgvn0")
+    pages += pagination.select("div")
+
+
   count = len(pages)
 
-  if count >= 5:
-    return 5
+  if count >= 10:
+    return 10
   else:
     return count
+
 
 
 def extract_indeed_jobs(keyword):
@@ -43,8 +56,7 @@ def extract_indeed_jobs(keyword):
   results = []
   for page in range(pages):
     base_url = "https://kr.indeed.com/jobs"
-    end_url = "&limit=50"
-    final_url = f"{base_url}?q={keyword}&start={page*10}{end_url}"
+    final_url = f"{base_url}?q={keyword}&start={page*10}"
     print("Requesting", final_url)
     browser.get(final_url)
 
@@ -56,7 +68,7 @@ def extract_indeed_jobs(keyword):
       if zone == None:
         anchor = job.select_one("h2 a")
         if anchor == None:
-          break
+          continue 
         title = anchor['aria-label']
         link = anchor['href']
         company = job.find("span", class_="companyName")
